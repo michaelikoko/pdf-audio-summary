@@ -1,65 +1,172 @@
-import Image from "next/image";
+'use client'
+import { useMutation } from "@tanstack/react-query";
+import axios from "axios";
+import { useRef, useState } from "react";
+import FileUploadSection from "@/components/FileUploadSection";
+import SummaryCard from "@/components/SummaryCard";
+import SummaryOptions from "@/components/SummaryOptions";
+import { playWithBrowserTTS, stopBrowserTTS } from "@/utils/browser-tts";
 
 export default function Home() {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [textSummary, setTextSummary] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [audioSrc, setAudioSrc] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [summaryLength, setSummaryLength] = useState<'short' | 'medium' | 'long'>('medium');
+  const [customPrompt, setCustomPrompt] = useState<string>('');
+  const [showOptions, setShowOptions] = useState(false);
+  const [useBrowserTTS, setUseBrowserTTS] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  const summarizeDocumentMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("summaryLength", summaryLength);
+      formData.append("customPrompt", customPrompt);
+
+      const response = await axios.post("/api/summarize", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setTextSummary(data.message);
+      generateAudioMutation.mutate(data.message);
+    },
+    onError: (error) => {
+      console.error("Error summarizing document:", error);
+      setErrorMessage("Failed to summarize document. Please try again.");
+    }
+  });
+
+  const generateAudioMutation = useMutation({
+    mutationFn: async (text: string) => {
+      //return { type: 'browser', url: null };
+      try {
+        const response = await axios.post("/api/tts",
+          { text },
+          { responseType: 'blob', timeout: 10000 }
+        );
+        return { type: 'elevenlabs', url: URL.createObjectURL(response.data) };
+      } catch (error) {
+        console.warn("ElevenLabs failed, falling back to browser TTS", error);
+        return { type: 'browser', url: null };
+      }
+    },
+    onSuccess: (data) => {
+      if (data.type === 'elevenlabs') {
+        setAudioSrc(data.url);
+        setUseBrowserTTS(false);
+      } else {
+        setUseBrowserTTS(true);
+        setAudioSrc(null);
+      }
+    },
+    onError: (error) => {
+      console.error("Error generating audio:", error);
+    }
+  });
+
+  function handleSubmit() {
+    if (selectedFile) {
+      setTextSummary(null);
+      setAudioSrc(null);
+      summarizeDocumentMutation.mutate(selectedFile);
+    }
+  }
+  function togglePlayPause() {
+    if (useBrowserTTS && textSummary) {
+      if (isPlaying) {
+        stopBrowserTTS();
+        setIsPlaying(false);
+      } else {
+        setIsPlaying(true);
+        playWithBrowserTTS(textSummary)
+          .then(() => setIsPlaying(false))
+          .catch((err) => {
+            console.error('Browser TTS error:', err);
+            setIsPlaying(false);
+          });
+      }
+    } else if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-base-300 py-8 px-4">
+      <div className="max-w-4xl mx-auto">
+
+        <div className="text-center my-8">
+          <h1 className="text-4xl lg:text-6xl font-bold mb-4 bg-linear-to-r from-primary via-secondary to-accent text-transparent bg-clip-text">
+            Clear Explanations. Spoken Aloud
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-lg text-base-content/75 max-w-2xl mx-auto">
+            Upload a document, and get a plain-language summary with an audio reading.
+            Designed for clarity and accessibility.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        <FileUploadSection
+          selectedFile={selectedFile}
+          onFileChange={setSelectedFile}
+          errorMessage={errorMessage}
+          setErrorMessage={setErrorMessage}
+          onSubmit={handleSubmit}
+          isLoading={summarizeDocumentMutation.isPending}
+        />
+
+
+        <div className="text-center mt-4">
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => setShowOptions(!showOptions)}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            {showOptions ? 'Hide' : 'Show'} Advanced Options
+          </button>
         </div>
-      </main>
+
+
+        {showOptions && (
+          <SummaryOptions
+            summaryLength={summaryLength}
+            onLengthChange={setSummaryLength}
+            customPrompt={customPrompt}
+            onPromptChange={setCustomPrompt}
+          />
+        )}
+
+
+        {textSummary && selectedFile && (
+          <SummaryCard
+            summary={textSummary}
+            fileName={selectedFile.name}
+            audioSrc={audioSrc}
+            isPlaying={isPlaying}
+            isGeneratingAudio={generateAudioMutation.isPending}
+            onTogglePlay={togglePlayPause}
+            useBrowserTTS={useBrowserTTS}
+          />
+        )}
+
+        {audioSrc && (
+          <audio
+            ref={audioRef}
+            src={audioSrc}
+            onEnded={() => setIsPlaying(false)}
+            onPause={() => setIsPlaying(false)}
+            onPlay={() => setIsPlaying(true)}
+          />
+        )}
+      </div>
     </div>
   );
 }
