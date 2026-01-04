@@ -37,7 +37,7 @@ export default function Home() {
       generateAudioMutation.mutate(data.message);
     },
     onError: (error) => {
-      console.error("Error summarizing document:", error);
+      //console.error("Error summarizing document:", error);
       setErrorMessage("Failed to summarize document. Please try again.");
     }
   });
@@ -52,7 +52,7 @@ export default function Home() {
         );
         return { type: 'elevenlabs', url: URL.createObjectURL(response.data) };
       } catch (error) {
-        console.warn("ElevenLabs failed, falling back to browser TTS", error);
+        //console.warn("ElevenLabs failed, falling back to browser TTS", error);
         return { type: 'browser', url: null };
       }
     },
@@ -66,7 +66,7 @@ export default function Home() {
       }
     },
     onError: (error) => {
-      console.error("Error generating audio:", error);
+      //console.error("Error generating audio:", error);
     }
   });
 
@@ -87,7 +87,7 @@ export default function Home() {
         playWithBrowserTTS(textSummary)
           .then(() => setIsPlaying(false))
           .catch((err) => {
-            console.error('Browser TTS error:', err);
+            //console.error('Browser TTS error:', err);
             setIsPlaying(false);
           });
       }
