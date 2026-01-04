@@ -48,7 +48,7 @@ export default function Home() {
       try {
         const response = await axios.post("/api/tts",
           { text },
-          { responseType: 'blob', timeout: 10000 }
+          { responseType: 'blob', timeout: 1000000 }
         );
         return { type: 'elevenlabs', url: URL.createObjectURL(response.data) };
       } catch (error) {

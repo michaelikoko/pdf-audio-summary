@@ -1,5 +1,5 @@
 'use client'
-import { PauseCircle, PlayCircle, Download, VolumeX } from "lucide-react";
+import { PauseCircle, PlayCircle, Download } from "lucide-react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 

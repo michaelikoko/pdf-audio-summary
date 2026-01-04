@@ -3,7 +3,7 @@
 export default function Navbar() {
     return (
         <div className="navbar bg-base-300 shadow-sm h-16">
-            <a className="btn btn-ghost text-xl text-primary">PDF SUM</a>
+            <a className="btn btn-ghost text-xl text-primary">TLDR</a>
         </div>
     )
 }

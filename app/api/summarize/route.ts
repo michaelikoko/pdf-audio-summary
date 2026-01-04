@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 const geminiAI = new GoogleGenAI({});
 
 const lengthMap = {
-    short: "2-3 concise paragraphs",
+    short: "1-2 concise and short paragraphs. Like very brief summary.",
     medium: "4-6 well-structured paragraphs",
     long: "a detailed, comprehensive summary with 8 or more paragraphs"
 };
@@ -48,7 +48,7 @@ Format your response with proper paragraphs and structure.`;
             wordCount: response.text ? response.text.split(' ').length : 0,
         });
     } catch (error) {
-        console.error("Error processing file:", error);
+        //console.error("Error processing file:", error);
         return NextResponse.json(
             { error: 'Failed to summarize document' },
             { status: 500 }

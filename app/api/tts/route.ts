@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { text } = await request.json();
-    
+    const text = (await request.json()).text
     const elevenlabs = new ElevenLabsClient();
     const audio = await elevenlabs.textToSpeech.convert('JBFqnCBsd6RMkjVDRZzb', {
       text: text,
@@ -28,7 +27,6 @@ export async function POST(request: NextRequest) {
       audioBuffer.set(chunk, offset);
       offset += chunk.length;
     }
-    
     return new NextResponse(audioBuffer, {
       headers: {
         'Content-Type': 'audio/mpeg',
@@ -37,7 +35,7 @@ export async function POST(request: NextRequest) {
     });
     
   } catch (error) {
-    console.error("TTS Error:", error);
+    //console.error("TTS Error:", error);
     return NextResponse.json({ error: "TTS failed" }, { status: 500 });
   }
 }
